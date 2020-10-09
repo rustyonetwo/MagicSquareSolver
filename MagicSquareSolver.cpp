@@ -15,9 +15,17 @@ void testFile(string file);
 int countFile(string userFile);
 int** makeMagic(string file, int length);
 void showMagic(int** square, int size);
-int** solvePuzzle(int** puzzle);
-bool isCompletePuzzle(int** puzzle);
-bool isValidPuzzle(int** puzzle);
+int calcMagic(int size);
+bool solvePuzzle(int** puzzle, int size);
+bool isCompletePuzzle(int** puzzle, int size);
+bool isValidPuzzle(int** puzzle, int size);
+bool testRow(int** puzzle, int row, int size);
+bool testCol(int** puzzle, int col, int size);
+bool testDiagonalLeft(int** puzzle, int size);
+bool testDiagonalRight(int** puzzle, int size);
+
+//Global memo declaration
+bool* memo;
 
 int main(int argc, char * argv[])
 {
@@ -47,16 +55,33 @@ int main(int argc, char * argv[])
 	//Determine the dimensionality of the puzzle
 	size = sqrt(countFile(userFile));
 
+	//Initialize memo 
+	int memoSize = (size * size) + 1;
+	memo = new bool[memoSize];
+	for (int b = 0; b < memoSize; b++)
+	{
+		memo[b] = false;
+	}
+
 	//Create a square 2d array containing the values in the file
 	magicSquare = makeMagic(userFile, size);
 
 	//Display the starting puzzle
+	cout << "Starting puzzle: " << endl;
 	showMagic(magicSquare, size);
+	cout << endl << endl;
 
 	//Solve the magic square using a recursive algorithm
-
-	//Display the solved puzzle, or a message if no solution is possible
-	showMagic(magicSquare, size);
+	if (solvePuzzle(magicSquare, size) == true)
+	{
+		cout << "Solved puzzle: " << endl;
+		showMagic(magicSquare, size);
+		cout << endl << endl;
+	}
+	else
+	{
+		cout << "This puzzle cannot be solved." << endl;
+	}
 
 	//Exit
 	cout << endl;
@@ -65,94 +90,90 @@ int main(int argc, char * argv[])
 }
 
 //solve a magic square
-int** solvePuzzle(int** puzzle)
+bool solvePuzzle(int** puzzle, int size)
 {
-	
-	//Locate the first blank space in the puzzle.
-		//In a loop over all potential candidates,
-		//Drop in a candidate.
-		//Make a recursive call to solvePuzzle() with the updated puzzle.
-		//Got back a true ? Return true.
-		//Otherwise, continue the loop(try the next candidate and make another recursive call)
-		//Completed the loop ? None of them worked.Reset the candidate cell to blank and return false.
+	if (isCompletePuzzle(puzzle, size) == false)
+	{
+		//Locate the first blank space in the puzzle.
+		for (int r = 0; r < size; r++)
+		{
+			for (int c = 0; c < size; c++)
+			{												
+				if (puzzle[r][c] == 0)
+				{
+					//In a loop over all potential candidates,
+					for (int candidate = 1; candidate <= (size * size); candidate++)
+					{
+						//Drop in a candidate.
+						if (memo[candidate] == false)
+						{						
+							puzzle[r][c] = candidate;
+							memo[candidate] = true;
 
+							//Make a recursive call to solvePuzzle() with the updated puzzle.
+							if (solvePuzzle(puzzle, size) == true)
+							{
+								//Got back a true ? Return true.
+								return true;
+							}
+							else
+							{
+								memo[candidate] = false;
+							}
+							
+						}
+						//Otherwise, continue the loop
+					}
+					//Completed the loop ? None of them worked.Reset the candidate cell to blank and return false.
+					memo[puzzle[r][c]] = false;
+					puzzle[r][c] = 0;
+					return false;
+				}
+				else
+				{
+					memo[puzzle[r][c]] = true;
+				}
+			}
+			//if (testRow(puzzle, r, size) == false) return false;
+		}
+	}
+	else if (isCompletePuzzle(puzzle, size) == true)
+	{
+		return isValidPuzzle(puzzle, size);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 //test puzzle for completeness
 bool isCompletePuzzle(int** puzzle, int size)
-{
-	bool result = true;
+{	
 	for (int i = 0; i < size; i++)
 	{
 		for (int j = 0; j < size; j++)
 		{
 			if (puzzle[i][j] == 0)
 			{
-				result = false;
+				return false;
 			}
 		}
 	}
-	return result;
+	return true;
 }
 
 //test puzzle for validity
-bool isValidPuzzle(int** puzzle)
+bool isValidPuzzle(int** puzzle, int size)
 {
-	//declare local variables
-	int size = 0;
-	int magicConstant = 0;
-	int acc = 0;
-
-	//get size from length of first row
-	size = sizeof(puzzle[0]);
-
-	//get magic constant
-	magicConstant = calcMagic(size);
-
-	//test each column, row, and diagonal to see if it adds up to the magic number
-	
-	//columns
-	for (int col = 0; col < size; col++)
-	{
-		acc = 0;
-		for (int row = 0; row < size; row++)
-		{
-			acc += puzzle[row][col];
-		}
-		if (acc > magicConstant) return false;		
-	}
-
-	//rows
-	for (int row = 0; row < size; row++)
-	{
-		acc = 0;
-		for (int col = 0; col < size; col++)
-		{
-			acc += puzzle[row][col];
-		}		
-		if (acc > magicConstant) return false;
-	}	
-
-	//left diagonal
-	acc = 0;
+	//test each column, row, and diagonal to see if it adds up to the magic number	
 	for (int i = 0; i < size; i++)
 	{
-		acc += puzzle[i][i];
-	}
-	if (acc > magicConstant) return false;
-
-	//right diagonal
-	acc = 0;
-	for (int i = 0; i < size; i++)
-	{
-		for (int j = size - 1; j > 0; j--)
+		if (testRow(puzzle, i, size) == false || testCol(puzzle, i, size) == false || testDiagonalLeft(puzzle, size) == false || testDiagonalRight(puzzle, size) == false)
 		{
-			acc += puzzle[i][j];
+			return false;
 		}
 	}
-	if (acc > magicConstant) return false;
-
-	//otherwise
 	return true;
 }
 
@@ -222,6 +243,89 @@ void showMagic(int** square, int size)
 int calcMagic(int size)
 {
 	//m = 1/2 n (n^2 +1)
-	return ((size / 2) * ((size * size) + 1));
+	int m = 0;
+	m = (size * size);
+	m += 1;
+	m *= size;
+	m /= 2;
+	return m;
 }
 
+#pragma region Puzzle Tests
+bool testRow(int** puzzle, int row, int size)
+{
+	int accumulator = 0;
+	int magic = calcMagic(size);
+	for (int i = 0; i < size; i++)
+	{
+		accumulator += puzzle[row][i];
+	}
+	
+	if (accumulator == magic)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool testCol(int** puzzle, int col, int size)
+{
+	int accumulator = 0;
+	int magic = calcMagic(size);
+	for (int i = 0; i < size; i++)
+	{
+		accumulator += puzzle[i][col];
+	}
+	if (accumulator == magic)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool testDiagonalLeft(int** puzzle, int size)
+{
+	int accumulator = 0;
+	int magic = calcMagic(size);
+	for (int i = 0; i < size; i++)
+	{
+		accumulator += puzzle[i][i];
+	}
+	if (accumulator == magic)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool testDiagonalRight(int** puzzle, int size)
+{
+	int accumulator = 0;
+	int magic = calcMagic(size);
+	for (int i = 0; i < size; i++)
+	{
+		//for (int j = size - 1; j > 0; j--)
+		{
+			accumulator += puzzle[i][size-1-i];
+		}
+	}
+	if (accumulator == magic)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+#pragma endregion
